@@ -26,6 +26,17 @@ jobs:
           flutter-version: '3.27.0'
           channel: 'stable'
 
+      - name: Fix Android v1 embedding
+        run: |
+          sed -i 's/android:name="io.flutter.app.FlutterApplication"/android:name="${applicationName}"/' android/app/src/main/AndroidManifest.xml
+          cat > android/app/src/main/kotlin/com/myetaxi/tracker/MainActivity.kt << 'KOTLIN'
+          package com.myetaxi.tracker
+
+          import io.flutter.embedding.android.FlutterActivity
+
+          class MainActivity : FlutterActivity()
+          KOTLIN
+
       - name: Fix compileSdk and targetSdk to 35
         run: |
           sed -i 's/compileSdkVersion 34/compileSdkVersion 35/' android/app/build.gradle
