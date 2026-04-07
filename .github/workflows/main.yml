@@ -26,30 +26,26 @@ jobs:
           flutter-version: '3.27.0'
           channel: 'stable'
 
-      - name: Fix Android v1 embedding
+      - name: Regenerate Android project if missing
         run: |
-          sed -i 's/android:name="io.flutter.app.FlutterApplication"/android:name="${applicationName}"/' android/app/src/main/AndroidManifest.xml
-          cat > android/app/src/main/kotlin/com/myetaxi/tracker/MainActivity.kt << 'KOTLIN'
-          package com.myetaxi.tracker
-
-          import io.flutter.embedding.android.FlutterActivity
-
-          class MainActivity : FlutterActivity()
-          KOTLIN
+          if [ ! -d "android" ]; then
+            echo "Android folder missing — regenerating..."
+            flutter create --platforms android .
+          fi
 
       - name: Fix compileSdk and targetSdk to 35
         run: |
-          sed -i 's/compileSdkVersion 34/compileSdkVersion 35/' android/app/build.gradle
-          sed -i 's/targetSdkVersion 34/targetSdkVersion 35/' android/app/build.gradle
-
-      - name: Upgrade flutter_local_notifications
-        run: |
-          sed -i 's/flutter_local_notifications: ^16.3.2/flutter_local_notifications: ^18.0.0/' pubspec.yaml
+          sed -i 's/compileSdk.*=.*/compileSdk = 35/' android/app/build.gradle || true
+          sed -i 's/compileSdkVersion.*/compileSdkVersion 35/' android/app/build.gradle || true
+          sed -i 's/targetSdkVersion.*/targetSdkVersion 35/' android/app/build.gradle || true
+          sed -i 's/targetSdk.*=.*/targetSdk = 35/' android/app/build.gradle || true
 
       - name: Fix notification_service Color conflict
         run: |
-          sed -i "1s|^|import 'dart:ui' show Color;\n|" lib/services/notification_service.dart
-          sed -i '/^\/\/ Needed for color/,/^}$/d' lib/services/notification_service.dart
+          if grep -q "class Color {" lib/services/notification_service.dart 2>/dev/null; then
+            sed -i "1s|^|import 'dart:ui' show Color;\n|" lib/services/notification_service.dart
+            sed -i '/^\/\/ Needed for color/,/^}$/d' lib/services/notification_service.dart
+          fi
 
       - name: Get dependencies
         run: flutter pub get
@@ -58,8 +54,10 @@ jobs:
         run: |
           TELEPHONY_BUILD=$(find ~/.pub-cache -path "*/telephony*/android/build.gradle" | head -1)
           if [ -n "$TELEPHONY_BUILD" ]; then
-            sed -i "s/android {/android {\n    namespace 'com.shounakmulay.telephony'/" "$TELEPHONY_BUILD"
-            echo "Patched: $TELEPHONY_BUILD"
+            if ! grep -q "namespace" "$TELEPHONY_BUILD"; then
+              sed -i "s/android {/android {\n    namespace 'com.shounakmulay.telephony'/" "$TELEPHONY_BUILD"
+              echo "Patched: $TELEPHONY_BUILD"
+            fi
           fi
 
       - name: Build APK
