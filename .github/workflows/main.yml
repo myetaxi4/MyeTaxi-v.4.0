@@ -1,52 +1,48 @@
 name: Build APK
- 
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
- 
-defaults:
-  run:
-    working-directory: "./MyeTaxi_Tracker v.3.0"
- 
+
 jobs:
   build:
     runs-on: ubuntu-latest
- 
+
     steps:
       - uses: actions/checkout@v4
- 
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
- 
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.27.0'
           channel: 'stable'
- 
+
       - name: Fix compileSdk and targetSdk to 35
         run: |
           sed -i 's/compileSdkVersion 34/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion 34/targetSdkVersion 35/' android/app/build.gradle
- 
+
       - name: Upgrade flutter_local_notifications
         run: |
           sed -i 's/flutter_local_notifications: ^16.3.2/flutter_local_notifications: ^18.0.0/' pubspec.yaml
- 
+
       - name: Fix notification_service Color conflict
         run: |
           sed -i "1s|^|import 'dart:ui' show Color;\n|" lib/services/notification_service.dart
           sed -i '/^\/\/ Needed for color/,/^}$/d' lib/services/notification_service.dart
- 
+
       - name: Get dependencies
         run: flutter pub get
- 
+
       - name: Fix telephony namespace
         run: |
           TELEPHONY_BUILD=$(find ~/.pub-cache -path "*/telephony*/android/build.gradle" | head -1)
@@ -54,12 +50,12 @@ jobs:
             sed -i "s/android {/android {\n    namespace 'com.shounakmulay.telephony'/" "$TELEPHONY_BUILD"
             echo "Patched: $TELEPHONY_BUILD"
           fi
- 
+
       - name: Build APK
         run: flutter build apk --release
- 
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: "MyeTaxi_Tracker v.3.0/build/app/outputs/flutter-apk/app-release.apk"
+          path: build/app/outputs/flutter-apk/app-release.apk
